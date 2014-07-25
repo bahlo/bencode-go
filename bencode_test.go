@@ -19,7 +19,7 @@ func TestReadInt(t *testing.T) {
 
 	num, err := dec.readInt()
 	if err != nil {
-		t.Errorf("readInt returned error: %s", err)
+		t.Errorf("readInt returned error: %v", err)
 	}
 
 	if num != o {
@@ -33,10 +33,24 @@ func TestReadString(t *testing.T) {
 
 	str, err := dec.readString()
 	if err != nil {
-		t.Errorf("readString returned error: %s", err)
+		t.Errorf("readString returned error: %v", err)
 	}
 
 	if str != o {
 		t.Errorf("readString returned %s, but should return %s", str, o)
+	}
+}
+
+func TestReadList(t *testing.T) {
+	const i, o = "l4:testi4ee", []interface{}{"test", 4}
+	dec := getDecoder([]byte(i))
+
+	list, err := dec.readList()
+	if err != nil {
+		t.Errorf("readList returned error: %v", err)
+	}
+
+	if list != o {
+		t.Errorf("readList returned %v, but should return %v", list, o)
 	}
 }
