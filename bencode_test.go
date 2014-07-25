@@ -60,6 +60,7 @@ func TestReadDictionary(t *testing.T) {
 		"test": 1337,
 		"foo":  "bar",
 	}
+	dec := getDecoder([]byte(i))
 
 	dict, err := dec.readDictionary()
 	if err != nil {
@@ -68,5 +69,25 @@ func TestReadDictionary(t *testing.T) {
 
 	if dict != o {
 		t.Errorf("readDictionary returned %v, but should %v", dict, o)
+	}
+}
+
+func TestDecode(t *testing.T) {
+	const i, o = "d4:testli4ei3ee3:foo3:bar", map[string]interface{}{
+		"test": []int{
+			4,
+			3,
+		},
+		"foo": "bar",
+	}
+	buf := bytes.NewBufferString(i)
+
+	res, err := Decode(buf)
+	if err != nil {
+		t.Errorf("Decode returned error: %v", err)
+	}
+
+	if res != o {
+		t.Errorf("Decode returned %v, but should return %v", res, o)
 	}
 }
