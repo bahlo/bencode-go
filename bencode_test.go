@@ -54,3 +54,19 @@ func TestReadList(t *testing.T) {
 		t.Errorf("readList returned %v, but should return %v", list, o)
 	}
 }
+
+func TestReadDictionary(t *testing.T) {
+	const i, o = "d4:testi1337e3:foo3:bare", map[string]interface{}{
+		"test": 1337,
+		"foo":  "bar",
+	}
+
+	dict, err := dec.readDictionary()
+	if err != nil {
+		t.Errorf("readDictionary returned error: %v", err)
+	}
+
+	if dict != o {
+		t.Errorf("readDictionary returned %v, but should %v", dict, o)
+	}
+}
