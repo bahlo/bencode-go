@@ -2,6 +2,7 @@ package octorrent
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"strconv"
 )
@@ -153,5 +154,13 @@ func (decoder *decoder) readDictionary() (map[string]interface{}, error) {
 }
 
 func Decode(reader io.Reader) (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
+	decoder := decoder{*bufio.NewReader(reader)}
+
+	if b, err := decoder.ReadByte(); err != nil {
+		return nil, err
+	} else if b != 'd' {
+		return nil, errors.New("bencode data must be a dictionary at top level")
+	}
+
+	return decoder.readDictionary()
 }

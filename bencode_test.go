@@ -76,12 +76,12 @@ func TestReadDictionary(t *testing.T) {
 	}
 }
 
-func testDecode(t *testing.T) {
-	const i = "d4:testli4ei3ee3:foo3:bar"
+func TestDecode(t *testing.T) {
+	const i = "d4:testli4ei3ee3:foo3:bare"
 	o := map[string]interface{}{
-		"test": []int{
-			4,
-			3,
+		"test": []interface{}{
+			int64(4),
+			int64(3),
 		},
 		"foo": "bar",
 	}
