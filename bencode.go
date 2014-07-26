@@ -126,11 +126,27 @@ func (decoder *decoder) readDictionary() (map[string]interface{}, error) {
 	var dict = map[string]interface{}{}
 
 	for {
-		//key, err := decoder.readString()
-		//if err != nil {
-		//return nil, err
-		//}
+		// Check if end
+		end, err := decoder.isEnd()
+		if err != nil {
+			return nil, err
+		} else if end {
+			return dict, nil
+		}
 
+		// Get key
+		key, err := decoder.readString()
+		if err != nil {
+			return nil, err
+		}
+
+		// Get value
+		val, err := decoder.readValue()
+		if err != nil {
+			return nil, err
+		}
+
+		dict[key] = val
 	}
 
 	return dict, nil
