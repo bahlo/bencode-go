@@ -29,7 +29,7 @@ func TestReadInt(t *testing.T) {
 	}
 }
 
-func testReadString(t *testing.T) {
+func TestReadString(t *testing.T) {
 	const i, o = "4:testfoobar", "test"
 	dec := getDecoder([]byte(i))
 
