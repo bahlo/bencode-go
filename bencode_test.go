@@ -43,9 +43,9 @@ func TestReadString(t *testing.T) {
 	}
 }
 
-func testReadList(t *testing.T) {
-	const i = "l4:testi4ee"
-	o := []interface{}{"test", 4}
+func TestReadList(t *testing.T) {
+	const i = "4:testi4ee"
+	o := []interface{}{"test", int64(4)}
 	dec := getDecoder([]byte(i))
 
 	list, err := dec.readList()

@@ -33,8 +33,6 @@ func (decoder *decoder) readIntUntil(b byte) (interface{}, error) {
 }
 
 func (decoder *decoder) readString() (string, error) {
-	buf := make([]byte, strLen)
-
 	// Get length of string
 	l, err := decoder.readIntUntil(':')
 	if err != nil {
@@ -43,6 +41,7 @@ func (decoder *decoder) readString() (string, error) {
 
 	// Read into buffer
 	strLen := l.(int64)
+	buf := make([]byte, strLen)
 	pos := int64(0)
 	for pos < strLen {
 		n, err := decoder.Read(buf[pos:])
@@ -57,6 +56,40 @@ func (decoder *decoder) readString() (string, error) {
 }
 
 func (decoder *decoder) readList() (interface{}, error) {
+	var list []interface{}
+
+	for {
+		b, err := decoder.ReadByte()
+		if err != nil {
+			return nil, err
+		}
+
+		var item interface{}
+		switch b {
+		case 'i':
+			item, err = decoder.readInt()
+		case 'l':
+			item, err = decoder.readList()
+		case 'd':
+			item, err = decoder.readDictionary()
+		case 'e':
+			return list, nil
+		default:
+			// Unread last byte, because it belongs to the lenght
+			// of the string
+			if err := decoder.UnreadByte(); err != nil {
+				return nil, err
+			}
+			item, err = decoder.readString()
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		list = append(list, item)
+	}
+
 	return []interface{}{1, 2}, nil
 }
 
