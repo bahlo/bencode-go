@@ -1,7 +1,9 @@
 package octorrent
 
 import (
+	"bufio"
 	"bytes"
+	"reflect"
 	"testing"
 )
 
@@ -9,12 +11,12 @@ func getDecoder(d []byte) decoder {
 	buf := bytes.NewBuffer(d)
 
 	return decoder{
-		*buf,
+		*bufio.NewReader(buf),
 	}
 }
 
 func TestReadInt(t *testing.T) {
-	const i, o = "412e51", 412
+	const i, o = "412e51", int64(412)
 	dec := getDecoder([]byte(i))
 
 	num, err := dec.readInt()
@@ -23,11 +25,11 @@ func TestReadInt(t *testing.T) {
 	}
 
 	if num != o {
-		t.Errorf("readInt did return %i, but should return %i", num, out)
+		t.Errorf("readInt did return %i, but should return %i", num, o)
 	}
 }
 
-func TestReadString(t *testing.T) {
+func testReadString(t *testing.T) {
 	const i, o = "4:testfoobar", "test"
 	dec := getDecoder([]byte(i))
 
@@ -41,8 +43,9 @@ func TestReadString(t *testing.T) {
 	}
 }
 
-func TestReadList(t *testing.T) {
-	const i, o = "l4:testi4ee", []interface{}{"test", 4}
+func testReadList(t *testing.T) {
+	const i = "l4:testi4ee"
+	o := []interface{}{"test", 4}
 	dec := getDecoder([]byte(i))
 
 	list, err := dec.readList()
@@ -50,13 +53,14 @@ func TestReadList(t *testing.T) {
 		t.Errorf("readList returned error: %v", err)
 	}
 
-	if list != o {
+	if !reflect.DeepEqual(list, o) {
 		t.Errorf("readList returned %v, but should return %v", list, o)
 	}
 }
 
-func TestReadDictionary(t *testing.T) {
-	const i, o = "d4:testi1337e3:foo3:bare", map[string]interface{}{
+func testReadDictionary(t *testing.T) {
+	const i = "d4:testi1337e3:foo3:bare"
+	o := map[string]interface{}{
 		"test": 1337,
 		"foo":  "bar",
 	}
@@ -67,13 +71,14 @@ func TestReadDictionary(t *testing.T) {
 		t.Errorf("readDictionary returned error: %v", err)
 	}
 
-	if dict != o {
+	if !reflect.DeepEqual(dict, o) {
 		t.Errorf("readDictionary returned %v, but should %v", dict, o)
 	}
 }
 
-func TestDecode(t *testing.T) {
-	const i, o = "d4:testli4ei3ee3:foo3:bar", map[string]interface{}{
+func testDecode(t *testing.T) {
+	const i = "d4:testli4ei3ee3:foo3:bar"
+	o := map[string]interface{}{
 		"test": []int{
 			4,
 			3,
@@ -87,7 +92,7 @@ func TestDecode(t *testing.T) {
 		t.Errorf("Decode returned error: %v", err)
 	}
 
-	if res != o {
+	if !reflect.DeepEqual(res, o) {
 		t.Errorf("Decode returned %v, but should return %v", res, o)
 	}
 }
