@@ -55,34 +55,56 @@ func (decoder *decoder) readString() (string, error) {
 	return string(buf), nil
 }
 
+func (decoder *decoder) readValue() (interface{}, error) {
+	b, err := decoder.ReadByte()
+	if err != nil {
+		return nil, err
+	}
+
+	var item interface{}
+	switch b {
+	case 'i':
+		item, err = decoder.readInt()
+	case 'l':
+		item, err = decoder.readList()
+	case 'd':
+		item, err = decoder.readDictionary()
+	default:
+		// Unread last byte, because it belongs to the lenght
+		// of the string
+		if err := decoder.UnreadByte(); err != nil {
+			return nil, err
+		}
+		item, err = decoder.readString()
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return item, nil
+}
+
 func (decoder *decoder) readList() (interface{}, error) {
 	var list []interface{}
 
 	for {
 		b, err := decoder.ReadByte()
+		// Check if
+		// - an error occured, if yes return it
+		// - the read char is an 'e', if yes, return the list
+		// - the unread function was successful, if not return err
+		// We need to do UnreadByte to make readValue() work
 		if err != nil {
+			return nil, err
+		} else if b == 'e' {
+			return list, nil
+		} else if err := decoder.UnreadByte(); err != nil {
+			// Unread last byte since it's not an 'e'
 			return nil, err
 		}
 
-		var item interface{}
-		switch b {
-		case 'i':
-			item, err = decoder.readInt()
-		case 'l':
-			item, err = decoder.readList()
-		case 'd':
-			item, err = decoder.readDictionary()
-		case 'e':
-			return list, nil
-		default:
-			// Unread last byte, because it belongs to the lenght
-			// of the string
-			if err := decoder.UnreadByte(); err != nil {
-				return nil, err
-			}
-			item, err = decoder.readString()
-		}
-
+		item, err := decoder.readValue()
 		if err != nil {
 			return nil, err
 		}
@@ -90,11 +112,20 @@ func (decoder *decoder) readList() (interface{}, error) {
 		list = append(list, item)
 	}
 
-	return []interface{}{1, 2}, nil
+	return list, nil
 }
 
 func (decoder *decoder) readDictionary() (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
+	var dict = map[string]interface{}{}
+
+	//for {
+	//key, err := decoder.readString()
+	//if err != nil {
+	//return nil, err
+	//}
+	//}
+
+	return dict, nil
 }
 
 func Decode(reader io.Reader) (map[string]interface{}, error) {

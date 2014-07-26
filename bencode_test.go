@@ -59,7 +59,7 @@ func TestReadList(t *testing.T) {
 }
 
 func testReadDictionary(t *testing.T) {
-	const i = "d4:testi1337e3:foo3:bare"
+	const i = "4:testi1337e3:foo3:bare"
 	o := map[string]interface{}{
 		"test": 1337,
 		"foo":  "bar",
