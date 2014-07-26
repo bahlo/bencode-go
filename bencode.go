@@ -85,23 +85,30 @@ func (decoder *decoder) readValue() (interface{}, error) {
 	return item, nil
 }
 
+// Returns if the next byte is an 'e'
+func (decoder *decoder) isEnd() (bool, error) {
+	b, err := decoder.ReadByte()
+	if err != nil {
+		return false, err
+	} else if b == 'e' {
+		return true, nil
+	} else if err := decoder.UnreadByte(); err != nil {
+		// Unread last byte since it's not an 'e'
+		return false, err
+	}
+
+	return false, nil
+}
+
 func (decoder *decoder) readList() (interface{}, error) {
 	var list []interface{}
 
 	for {
-		b, err := decoder.ReadByte()
-		// Check if
-		// - an error occured, if yes return it
-		// - the read char is an 'e', if yes, return the list
-		// - the unread function was successful, if not return err
-		// We need to do UnreadByte to make readValue() work
+		end, err := decoder.isEnd()
 		if err != nil {
 			return nil, err
-		} else if b == 'e' {
+		} else if end {
 			return list, nil
-		} else if err := decoder.UnreadByte(); err != nil {
-			// Unread last byte since it's not an 'e'
-			return nil, err
 		}
 
 		item, err := decoder.readValue()
@@ -118,12 +125,13 @@ func (decoder *decoder) readList() (interface{}, error) {
 func (decoder *decoder) readDictionary() (map[string]interface{}, error) {
 	var dict = map[string]interface{}{}
 
-	//for {
-	//key, err := decoder.readString()
-	//if err != nil {
-	//return nil, err
-	//}
-	//}
+	for {
+		//key, err := decoder.readString()
+		//if err != nil {
+		//return nil, err
+		//}
+
+	}
 
 	return dict, nil
 }
