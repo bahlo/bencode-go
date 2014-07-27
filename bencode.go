@@ -7,14 +7,18 @@ import (
 	"strconv"
 )
 
+// decoder wraps around a Reader and provides functions for bencode decoding
 type decoder struct {
 	bufio.Reader
 }
 
+// readInt reads and decodes a bencoded int
 func (decoder *decoder) readInt() (interface{}, error) {
 	return decoder.readIntUntil('e')
 }
 
+// readIntUntil reads and decodes a bencoded int until before the first
+// occurence of the given byte
 func (decoder *decoder) readIntUntil(b byte) (interface{}, error) {
 	res, err := decoder.ReadSlice(b)
 	if err != nil {
@@ -33,6 +37,7 @@ func (decoder *decoder) readIntUntil(b byte) (interface{}, error) {
 	return -1, err
 }
 
+// readValue reads, detects and decodes a bencoded value
 func (decoder *decoder) readString() (string, error) {
 	// Get length of string
 	l, err := decoder.readIntUntil(':')
@@ -56,6 +61,7 @@ func (decoder *decoder) readString() (string, error) {
 	return string(buf), nil
 }
 
+// readValue reads, detects and decodes a bencoded value
 func (decoder *decoder) readValue() (interface{}, error) {
 	b, err := decoder.ReadByte()
 	if err != nil {
@@ -86,7 +92,7 @@ func (decoder *decoder) readValue() (interface{}, error) {
 	return item, nil
 }
 
-// Returns if the next byte is an 'e'
+// isEnd returns if the next byte is an 'e'
 func (decoder *decoder) isEnd() (bool, error) {
 	b, err := decoder.ReadByte()
 	if err != nil {
@@ -101,10 +107,12 @@ func (decoder *decoder) isEnd() (bool, error) {
 	return false, nil
 }
 
+// readList reads and decodes a bencoded list
 func (decoder *decoder) readList() (interface{}, error) {
 	var list []interface{}
 
 	for {
+		// Check if end
 		end, err := decoder.isEnd()
 		if err != nil {
 			return nil, err
@@ -112,6 +120,7 @@ func (decoder *decoder) readList() (interface{}, error) {
 			return list, nil
 		}
 
+		// Get item
 		item, err := decoder.readValue()
 		if err != nil {
 			return nil, err
@@ -123,6 +132,7 @@ func (decoder *decoder) readList() (interface{}, error) {
 	return list, nil
 }
 
+// readDictionary reads and decodes a bencoded dictionary
 func (decoder *decoder) readDictionary() (map[string]interface{}, error) {
 	var dict = map[string]interface{}{}
 
@@ -153,6 +163,7 @@ func (decoder *decoder) readDictionary() (map[string]interface{}, error) {
 	return dict, nil
 }
 
+// Decode decodes the bencoded data in the given reader
 func Decode(reader io.Reader) (map[string]interface{}, error) {
 	decoder := decoder{*bufio.NewReader(reader)}
 
