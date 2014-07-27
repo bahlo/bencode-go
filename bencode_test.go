@@ -69,16 +69,24 @@ func TestReadIntUntil(t *testing.T) {
 }
 
 func TestReadString(t *testing.T) {
-	const i, o = "4:testfoobar", "test"
+	i, o := "4:testfoobar", "test"
 	dec := getDecoder([]byte(i))
-
-	str, err := dec.readString()
-	if err != nil {
+	if str, err := dec.readString(); err != nil {
 		t.Errorf("readString returned error: %v", err)
+	} else if str != o {
+		t.Errorf("readString returned %s, but should return %s", str, o)
 	}
 
-	if str != o {
-		t.Errorf("readString returned %s, but should return %s", str, o)
+	// Test broken reader
+	dec = getDecoder([]byte(""))
+	if _, err := dec.readString(); err == nil {
+		t.Errorf("readSstring with empty string returned no error, but should")
+	}
+
+	// Test wrong format
+	dec = getDecoder([]byte("4:foo"))
+	if _, err := dec.readString(); err == nil {
+		t.Errorf("readString with wrong formatted string returned no error, but should")
 	}
 }
 
