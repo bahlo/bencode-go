@@ -3,6 +3,7 @@ package octorrent
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -46,6 +47,13 @@ func TestReadIntUntil(t *testing.T) {
 	num, err = dec.readIntUntil('t')
 	if err == nil {
 		t.Errorf("readIntUntil with empty reader returned no error, but should")
+	}
+
+	dec = getDecoder([]byte("test"))
+	num, err = dec.readIntUntil('e')
+	fmt.Println(num, err)
+	if err == nil {
+		t.Errorf("readIntUntil with no digits returned no error, but should")
 	}
 }
 

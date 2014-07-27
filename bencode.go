@@ -28,10 +28,16 @@ func (decoder *decoder) readIntUntil(b byte) (interface{}, error) {
 	// Read until before the 'e'nd
 	str := string(res[:len(res)-1])
 
-	if value, err := strconv.ParseInt(str, 10, 64); err == nil {
-		return value, nil
-	} else if value, err := strconv.ParseUint(str, 10, 64); err == nil {
-		return value, nil
+	// Check int
+	num, err := strconv.ParseInt(str, 10, 64)
+	if err == nil {
+		return num, nil
+	}
+
+	// Check unsigned int
+	unum, err := strconv.ParseUint(str, 10, 64)
+	if err == nil {
+		return unum, nil
 	}
 
 	return -1, err
