@@ -72,6 +72,28 @@ func TestReadList(t *testing.T) {
 	}
 }
 
+func TestIsEnd(t *testing.T) {
+	i, o := "4:test", false
+	dec := getDecoder([]byte(i))
+	end, err := dec.isEnd()
+	if err != nil {
+		t.Errorf("isEnd returned error: %v", err)
+	}
+	if end != o {
+		t.Errorf("isEnd returned %v, but should return %v", end, o)
+	}
+
+	i, o = "e4:test", true
+	dec = getDecoder([]byte(i))
+	end, err = dec.isEnd()
+	if err != nil {
+		t.Errorf("isEnd returned error: %v", err)
+	}
+	if end != o {
+		t.Errorf("isEnd returned %v, but should return %v", end, o)
+	}
+}
+
 func TestReadDictionary(t *testing.T) {
 	const i = "4:testi1337e3:foo3:bare"
 	o := map[string]interface{}{
