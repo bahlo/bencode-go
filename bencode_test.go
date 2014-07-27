@@ -102,21 +102,6 @@ func TestReadValue(t *testing.T) {
 	}
 }
 
-func TestReadList(t *testing.T) {
-	const i = "4:testi4ee"
-	o := []interface{}{"test", int64(4)}
-	dec := getDecoder([]byte(i))
-
-	list, err := dec.readList()
-	if err != nil {
-		t.Errorf("readList returned error: %v", err)
-	}
-
-	if !reflect.DeepEqual(list, o) {
-		t.Errorf("readList returned %v, but should return %v", list, o)
-	}
-}
-
 func TestIsEnd(t *testing.T) {
 	i, o := "4:test", false
 	dec := getDecoder([]byte(i))
@@ -136,6 +121,26 @@ func TestIsEnd(t *testing.T) {
 	}
 	if end != o {
 		t.Errorf("isEnd returned %v, but should return %v", end, o)
+	}
+
+	dec = getDecoder([]byte(""))
+	if _, err := dec.isEnd(); err == nil {
+		t.Errorf("isEnd with empty buffer returned no error, but should")
+	}
+}
+
+func TestReadList(t *testing.T) {
+	const i = "4:testi4ee"
+	o := []interface{}{"test", int64(4)}
+	dec := getDecoder([]byte(i))
+
+	list, err := dec.readList()
+	if err != nil {
+		t.Errorf("readList returned error: %v", err)
+	}
+
+	if !reflect.DeepEqual(list, o) {
+		t.Errorf("readList returned %v, but should return %v", list, o)
 	}
 }
 
