@@ -16,7 +16,7 @@ func getDecoder(d []byte) decoder {
 }
 
 func TestReadInt(t *testing.T) {
-	const i, o = "412e51", int64(412)
+	i, o := "412e51", int64(412)
 	dec := getDecoder([]byte(i))
 
 	num, err := dec.readInt()
@@ -30,7 +30,7 @@ func TestReadInt(t *testing.T) {
 }
 
 func TestReadIntUntil(t *testing.T) {
-	const i, o = "142", int64(14)
+	i, o := "142", int64(14)
 	dec := getDecoder([]byte(i))
 
 	num, err := dec.readIntUntil('2')
@@ -40,6 +40,12 @@ func TestReadIntUntil(t *testing.T) {
 
 	if num != o {
 		t.Errorf("readIntUntil did return %i, but should return %i", num, o)
+	}
+
+	dec = getDecoder([]byte(""))
+	num, err = dec.readIntUntil('t')
+	if err == nil {
+		t.Errorf("readIntUntil with empty reader returned no error, but should")
 	}
 }
 
