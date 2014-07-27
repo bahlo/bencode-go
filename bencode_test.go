@@ -38,6 +38,17 @@ func TestReadIntUntil(t *testing.T) {
 		t.Errorf("readIntUntil did return %i, but should return %i", num, o)
 	}
 
+	// Check unsigned int
+	var max uint64
+	max = math.MaxUint64
+	i = strconv.FormatUint(math.MaxUint64, 10) + "e"
+	dec = getDecoder([]byte(i))
+	if num, err := dec.readIntUntil('e'); err != nil {
+		t.Errorf("readIntUntil with unsigned int returned error: %v", err)
+	} else if num.(uint64) != math.MaxUint64 {
+		t.Errorf("readIntUntil with unsigned int did return %i, but should return %i", num, max)
+	}
+
 	// Check broken reader
 	dec = getDecoder([]byte(""))
 	if _, err := dec.readIntUntil('t'); err == nil {
@@ -47,15 +58,6 @@ func TestReadIntUntil(t *testing.T) {
 	dec = getDecoder([]byte("test"))
 	if _, err := dec.readIntUntil('e'); err == nil {
 		t.Errorf("readIntUntil with no digits returned no error, but should")
-	}
-
-	// Check unsigned int
-	var ui uint64
-	ui = math.MaxInt64 + 1
-	i = "i" + strconv.FormatUint(ui, 10) + "e"
-	dec = getDecoder([]byte(i))
-	if _, err := dec.readIntUntil('e'); err == nil {
-		t.Errorf("readIntUntil with unsigned int returned no error, but should")
 	}
 }
 
