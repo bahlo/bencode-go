@@ -3,8 +3,9 @@ package octorrent
 import (
 	"bufio"
 	"bytes"
-	"fmt"
+	"math"
 	"reflect"
+	"strconv"
 	"testing"
 )
 
@@ -43,6 +44,7 @@ func TestReadIntUntil(t *testing.T) {
 		t.Errorf("readIntUntil did return %i, but should return %i", num, o)
 	}
 
+	// Check broken reader
 	dec = getDecoder([]byte(""))
 	num, err = dec.readIntUntil('t')
 	if err == nil {
@@ -51,9 +53,18 @@ func TestReadIntUntil(t *testing.T) {
 
 	dec = getDecoder([]byte("test"))
 	num, err = dec.readIntUntil('e')
-	fmt.Println(num, err)
 	if err == nil {
 		t.Errorf("readIntUntil with no digits returned no error, but should")
+	}
+
+	// Check unsigned int
+	var ui uint64
+	ui = math.MaxInt64 + 1
+	i = "i" + strconv.FormatUint(ui, 10) + "e"
+	dec = getDecoder([]byte(i))
+	num, err = dec.readIntUntil('e')
+	if err == nil {
+		t.Errorf("readIntUntil with unsigned int returned no error, but should")
 	}
 }
 
