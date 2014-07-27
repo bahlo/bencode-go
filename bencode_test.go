@@ -216,4 +216,14 @@ func TestDecode(t *testing.T) {
 	if !reflect.DeepEqual(res, o) {
 		t.Errorf("Decode returned %v, but should return %v", res, o)
 	}
+
+	buf = bytes.NewBufferString("")
+	if _, err := Decode(buf); err == nil {
+		t.Errorf("Decode with empty buffer returned no error, but should")
+	}
+
+	buf = bytes.NewBufferString("3:foo")
+	if _, err := Decode(buf); err == nil {
+		t.Errorf("Decode with other value than dictionary returned no error, but should")
+	}
 }
