@@ -29,6 +29,20 @@ func TestReadInt(t *testing.T) {
 	}
 }
 
+func TestReadIntUntil(t *testing.T) {
+	const i, o = "142", int64(14)
+	dec := getDecoder([]byte(i))
+
+	num, err := dec.readIntUntil('2')
+	if err != nil {
+		t.Errorf("readIntUntil returned error: %v", err)
+	}
+
+	if num != o {
+		t.Errorf("readIntUntil did return %i, but should return %i", num, o)
+	}
+}
+
 func TestReadString(t *testing.T) {
 	const i, o = "4:testfoobar", "test"
 	dec := getDecoder([]byte(i))
@@ -40,6 +54,37 @@ func TestReadString(t *testing.T) {
 
 	if str != o {
 		t.Errorf("readString returned %s, but should return %s", str, o)
+	}
+}
+
+func TestReadValue(t *testing.T) {
+	// Make o an interface{} to set various types
+	var o interface{}
+
+	// String
+	i, o := "4:test", "test"
+	dec := getDecoder([]byte(i))
+
+	str, err := dec.readValue()
+	if err != nil {
+		t.Errorf("readValue returned error while reading string: %v", err)
+	}
+
+	if str != o {
+		t.Errorf("readValue returned %s, but should return %s", str, o)
+	}
+
+	// Int
+	i, o = "i1337e", int64(1337)
+	dec = getDecoder([]byte(i))
+
+	num, err := dec.readValue()
+	if err != nil {
+		t.Errorf("readValue returned error while reading int: %v", err)
+	}
+
+	if num != o {
+		t.Errorf("readValue returned %i, but should return %i", num, o)
 	}
 }
 
