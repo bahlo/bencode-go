@@ -1,220 +1,214 @@
 package octorrent
 
 import (
+	"bufio"
+	"bytes"
+	"math"
 	"reflect"
+	"strconv"
 	"testing"
 )
 
-func TestDecodeInt(t *testing.T) {
-	i := []byte("i20e")
-	const o = 20
+func getDecoder(d []byte) decoder {
+	buf := bytes.NewBuffer(d)
 
-	e, err := DecodeInt(i)
-
-	if err != nil {
-		t.Errorf("DecodeInt(%d) got error: %v", i, err)
-	}
-
-	if o != e {
-		t.Errorf("DecodeInt(%d) = %d, want %d", i, e, o)
+	return decoder{
+		*bufio.NewReader(buf),
 	}
 }
 
-func TestDecodeString(t *testing.T) {
-	i := []byte("7:testing")
-	const o = "testing"
+func TestReadInt(t *testing.T) {
+	i, o := "412e51", int64(412)
+	dec := getDecoder([]byte(i))
 
-	e, err := DecodeString(i)
-
-	if err != nil {
-		t.Errorf("DecodeString(%s) got error: %v", i, err)
-	}
-
-	if o != e {
-		t.Errorf("DecodeString(%s) = %s, want %s", i, e, o)
+	if num, err := dec.readInt(); err != nil {
+		t.Errorf("readInt returned error: %v", err)
+	} else if num != o {
+		t.Errorf("readInt did return %i, but should return %i", num, o)
 	}
 }
 
-func TestIndexStringEnd(t *testing.T) {
-	i := []byte("7:testingi4e")
-	const o = 8
+func TestReadIntUntil(t *testing.T) {
+	i, o := "142", int64(14)
+	dec := getDecoder([]byte(i))
 
-	e, err := indexStringEnd(i)
-
-	if err != nil {
-		t.Errorf("indexStringEnd(%s) got error: %v", i, err)
+	if num, err := dec.readIntUntil('2'); err != nil {
+		t.Errorf("readIntUntil returned error: %v", err)
+	} else if num != o {
+		t.Errorf("readIntUntil did return %i, but should return %i", num, o)
 	}
 
-	if o != e {
-		t.Errorf("indexStringEnd(%s) = %d, want %d", i, e, o)
-	}
-}
-
-func TestIndexIntEnd(t *testing.T) {
-	i := []byte("i1337e3:foo")
-	const o = 5
-
-	e, err := indexIntEnd(i)
-
-	if err != nil {
-		t.Errorf("indexIntEnd(%s) got error: %v", i, err)
+	// Check unsigned int
+	var max uint64
+	max = math.MaxUint64
+	i = strconv.FormatUint(math.MaxUint64, 10) + "e"
+	dec = getDecoder([]byte(i))
+	if num, err := dec.readIntUntil('e'); err != nil {
+		t.Errorf("readIntUntil with unsigned int returned error: %v", err)
+	} else if num.(uint64) != math.MaxUint64 {
+		t.Errorf("readIntUntil with unsigned int did return %i, but should return %i", num, max)
 	}
 
-	if o != e {
-		t.Errorf("indexIntEnd(%s) = %d, want %d", i, e, o)
-	}
-}
-
-func TestIndexListEnd(t *testing.T) {
-	i := []byte("l3:foo3:barei3e")
-	const o = 11
-
-	e, err := indexListEnd(i)
-
-	if err != nil {
-		t.Errorf("indexListEnd(%s) got error: %v", i, err)
+	// Check broken reader
+	dec = getDecoder([]byte(""))
+	if _, err := dec.readIntUntil('t'); err == nil {
+		t.Errorf("readIntUntil with empty reader returned no error, but should")
 	}
 
-	if o != e {
-		t.Errorf("indexListEnd(%s) = %d, want %d", i, e, o)
+	dec = getDecoder([]byte("test"))
+	if _, err := dec.readIntUntil('e'); err == nil {
+		t.Errorf("readIntUntil with no digits returned no error, but should")
 	}
 }
 
-func TestIndexDictEnd(t *testing.T) {
-	i := []byte("d3:foo3:bar6:numberi3ee4:this3:not")
-	const o = 22
-
-	e, err := indexDictEnd(i)
-
-	if err != nil {
-		t.Errorf("indexDictEnd(%s) got error: %v", i, err)
+func TestReadString(t *testing.T) {
+	i, o := "4:testfoobar", "test"
+	dec := getDecoder([]byte(i))
+	if str, err := dec.readString(); err != nil {
+		t.Errorf("readString returned error: %v", err)
+	} else if str != o {
+		t.Errorf("readString returned %s, but should return %s", str, o)
 	}
 
-	if o != e {
-		t.Errorf("indexDictEnd(%s) = %d, want %d", i, e, o)
+	// Test broken reader
+	dec = getDecoder([]byte(""))
+	if _, err := dec.readString(); err == nil {
+		t.Errorf("readSstring with empty buffer returned no error, but should")
+	}
+
+	// Test wrong format
+	dec = getDecoder([]byte("4:foo"))
+	if _, err := dec.readString(); err == nil {
+		t.Errorf("readString with wrong formatted string returned no error, but should")
 	}
 }
 
-func TestIndexEnd(t *testing.T) {
-	i := []byte("i3e3:fooi360e3:bare3:not")
-	const o = 18
-
-	e, err := indexEnd(i)
-
-	if err != nil {
-		t.Errorf("indexEnd(%s) got error: %v", i, err)
+func TestReadValue(t *testing.T) {
+	dec := getDecoder([]byte(""))
+	if _, err := dec.readValue(); err == nil {
+		t.Errorf("readValue with empty buffer returned no error, but should")
 	}
 
-	if o != e {
-		t.Errorf("indexEnd(%s) = %d, want %d", i, e, o)
+	dec = getDecoder([]byte("ifooe"))
+	if _, err := dec.readValue(); err == nil {
+		t.Errorf("readValue with wrongly formatted buffer returned no error, but should")
+	}
+}
+
+func TestIsEnd(t *testing.T) {
+	i, o := "4:test", false
+	dec := getDecoder([]byte(i))
+	if end, err := dec.isEnd(); err != nil {
+		t.Errorf("isEnd returned error: %v", err)
+	} else if end != o {
+		t.Errorf("isEnd returned %v, but should return %v", end, o)
+	}
+
+	i, o = "e4:test", true
+	dec = getDecoder([]byte(i))
+	if end, err := dec.isEnd(); err != nil {
+		t.Errorf("isEnd returned error: %v", err)
+	} else if end != o {
+		t.Errorf("isEnd returned %v, but should return %v", end, o)
+	}
+
+	dec = getDecoder([]byte(""))
+	if _, err := dec.isEnd(); err == nil {
+		t.Errorf("isEnd with empty buffer returned no error, but should")
+	}
+}
+
+func TestReadList(t *testing.T) {
+	i := "4:testi4ee"
+	o := []interface{}{"test", int64(4)}
+	dec := getDecoder([]byte(i))
+
+	if list, err := dec.readList(); err != nil {
+		t.Errorf("readList returned error: %v", err)
+	} else if !reflect.DeepEqual(list, o) {
+		t.Errorf("readList returned %v, but should return %v", list, o)
+	}
+
+	dec = getDecoder([]byte(""))
+	if _, err := dec.readList(); err == nil {
+		t.Errorf("readList with empty buffer returned no error, but should")
+	}
+
+	dec = getDecoder([]byte("4:test"))
+	if _, err := dec.readList(); err == nil {
+		t.Errorf("readList with no 'e'nd returned no error, but should")
+	}
+
+	dec = getDecoder([]byte("ie"))
+	if _, err := dec.readList(); err == nil {
+		t.Errorf("readList with no valid value returned no error, but should")
+	}
+}
+
+func TestReadDictionary(t *testing.T) {
+	i := "4:testi1337e3:foo3:bare"
+	o := map[string]interface{}{
+		"test": int64(1337),
+		"foo":  "bar",
+	}
+	dec := getDecoder([]byte(i))
+
+	if dict, err := dec.readDictionary(); err != nil {
+		t.Errorf("readDictionary returned error: %v", err)
+	} else if !reflect.DeepEqual(dict, o) {
+		t.Errorf("readDictionary returned %v, but should %v", dict, o)
+	}
+
+	dec = getDecoder([]byte(""))
+	if _, err := dec.readDictionary(); err == nil {
+		t.Errorf("readDict with empty buffer returned no error, but should")
+	}
+
+	dec = getDecoder([]byte(":"))
+	if _, err := dec.readDictionary(); err == nil {
+		t.Errorf("readDict with invalid key returned no error, but should")
+	}
+
+	dec = getDecoder([]byte("3:fooe"))
+	if _, err := dec.readDictionary(); err == nil {
+		t.Errorf("readDict with no value returned no error, but should")
+	}
+
+	dec = getDecoder([]byte("3:foo"))
+	if _, err := dec.readDictionary(); err == nil {
+		t.Errorf("readDict with only one key and no value returned no error, but should")
+	}
+
+	dec = getDecoder([]byte("3:foo3:bar"))
+	if _, err := dec.readDictionary(); err == nil {
+		t.Errorf("readDict with no 'e'nd returned no error, but should")
 	}
 }
 
 func TestDecode(t *testing.T) {
-	i := []byte("7:testing7:bencode3:foo3:bar")
-	o := []interface{}{"testing", "bencode", "foo", "bar"}
-
-	e, err := decode(i)
-
-	if err != nil {
-		t.Errorf("decode(%s) got error: %v", i, err)
-	}
-
-	if !reflect.DeepEqual(o, e) {
-		t.Errorf("decode(%s) = %v, want %v", i, e, o)
-	}
-}
-
-func TestMakeMap(t *testing.T) {
-	i := []interface{}{"testing", "bencode", "foo", "bar"}
+	const i = "d4:testli4ei3ee3:foo3:bare"
 	o := map[string]interface{}{
-		"testing": "bencode",
-		"foo":     "bar",
-	}
-
-	m, err := makeMap(i)
-
-	if err != nil {
-		t.Errorf("makeMap(%v) got error: %v", i, err)
-	}
-
-	if !reflect.DeepEqual(o, m) {
-		t.Errorf("makeMap(%v) = %v, want %v", i, m, o)
-	}
-}
-
-func TestDecodeList(t *testing.T) {
-	i := []byte("l3:foo3:bari4ee")
-	o := []interface{}{"foo", "bar", 4}
-
-	e, err := DecodeList(i)
-
-	if err != nil {
-		t.Errorf("DecodeList(%s) got error: %v", i, err)
-	}
-
-	if !reflect.DeepEqual(o, e) {
-		t.Errorf("DecodeList(%s) = %s, want %s", i, e, o)
-	}
-}
-
-func TestDecodeDictionary(t *testing.T) {
-	i := []byte("d7:testing7:bencode3:foo3:bar3:numi16ee")
-	o := map[string]interface{}{
-		"testing": "bencode",
-		"foo":     "bar",
-		"num":     16,
-	}
-
-	e, err := DecodeDictionary(i)
-
-	if err != nil {
-		t.Errorf("EncodeDictionary(%s) got error: %v", i, err)
-	}
-
-	if !reflect.DeepEqual(o, e) {
-		t.Errorf("EncodeDictionary(%s) = %v, want %v", i, e, o)
-	}
-}
-
-func TestNestedDictionaries(t *testing.T) {
-	i := []byte("d3:foo3:bar4:dictd3:numi5eee")
-	o := map[string]interface{}{
+		"test": []interface{}{
+			int64(4),
+			int64(3),
+		},
 		"foo": "bar",
-		"dict": map[string]interface{}{
-			"num": 5,
-		},
+	}
+	buf := bytes.NewBufferString(i)
+
+	if res, err := Decode(buf); err != nil {
+		t.Errorf("Decode returned error: %v", err)
+	} else if !reflect.DeepEqual(res, o) {
+		t.Errorf("Decode returned %v, but should return %v", res, o)
 	}
 
-	e, err := DecodeDictionary(i)
-
-	if err != nil {
-		t.Errorf("DecodeDictionary(%s) got error %v", i, err)
+	buf = bytes.NewBufferString("")
+	if _, err := Decode(buf); err == nil {
+		t.Errorf("Decode with empty buffer returned no error, but should")
 	}
 
-	if !reflect.DeepEqual(o, e) {
-		t.Errorf("DecodeDictionary(%s) = %v, want %v", i, e, o)
-	}
-}
-
-func TestNestedLists(t *testing.T) {
-	i := []byte("l3:foo3:barli3ei5eee")
-	o := []interface{}{
-		"foo",
-		"bar",
-		[]interface{}{
-			3,
-			5,
-		},
-	}
-
-	e, err := DecodeList(i)
-
-	if err != nil {
-		t.Errorf("DecodeList(%s) got error: %v", i, err)
-	}
-
-	if !reflect.DeepEqual(o, e) {
-		t.Errorf("DecodeList(%s) = %v, want %v", i, e, o)
+	buf = bytes.NewBufferString("3:foo")
+	if _, err := Decode(buf); err == nil {
+		t.Errorf("Decode with other value than dictionary returned no error, but should")
 	}
 }

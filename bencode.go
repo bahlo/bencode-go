@@ -1,296 +1,179 @@
 package octorrent
 
 import (
-	"bytes"
-	"fmt"
+	"bufio"
+	"errors"
+	"io"
 	"strconv"
 )
 
-// DecodeInt decodes a bencoded integer
-func DecodeInt(data []byte) (int, error) {
-	// Check if bencoded int
-	if !bytes.HasPrefix(data, []byte("i")) ||
-		!bytes.HasSuffix(data, []byte("e")) {
-		return 0, fmt.Errorf("not a bencoded int")
-	}
-
-	str := string(data[1 : len(data)-1])
-	num, err := strconv.Atoi(str)
-	if err != nil {
-		return 0, err
-	}
-
-	return num, nil
+// decoder wraps around a Reader and provides functions for bencode decoding
+type decoder struct {
+	bufio.Reader
 }
 
-// DecodeString decodes a bencoded string
-func DecodeString(data []byte) (string, error) {
-	// Get index of the colon
-	i := bytes.IndexByte(data, byte(':'))
-	l := len(data)
-
-	// Check if bencoded string
-	prefix := []byte(strconv.Itoa(l - 2))
-	if !bytes.HasPrefix(data, prefix) || i < 1 {
-		return "", fmt.Errorf("not a bencoded string")
-	}
-
-	return string(data[i+1 : l]), nil
+// readInt reads and decodes a bencoded int
+func (decoder *decoder) readInt() (interface{}, error) {
+	return decoder.readIntUntil('e')
 }
 
-// DecodeList decodes a bencoded list
-func DecodeList(data []byte) ([]interface{}, error) {
-	// Check if list
-	if !bytes.HasPrefix(data, []byte("l")) ||
-		!bytes.HasSuffix(data, []byte("e")) {
-		return []interface{}{}, fmt.Errorf("not a bencoded list")
-	}
-
-	return decode(data[1 : len(data)-1])
-}
-
-// DecodeDictionary decodes a bencoded dictionary
-func DecodeDictionary(data []byte) (map[string]interface{}, error) {
-	// Check if dictionary
-	if !bytes.HasPrefix(data, []byte("d")) ||
-		!bytes.HasSuffix(data, []byte("e")) {
-		return map[string]interface{}{}, fmt.Errorf("not a bencoded dictionary")
-	}
-
-	stringSlice, err := decode(data[1 : len(data)-1])
-	if err != nil {
-		return map[string]interface{}{}, err
-	}
-
-	return makeMap(stringSlice)
-}
-
-// decode parses joined bencoded values and returns them in a slice
-func decode(data []byte) ([]interface{}, error) {
-	ret := []interface{}{}
-
-	for len(data) > 0 {
-		first := string(data[0])
-
-		switch first {
-		default:
-			// We most likely have a string
-			// Try to find it's end
-			i, err := indexStringEnd(data)
-			if err != nil {
-				return ret, err
-			}
-
-			// Increment i to get one char after the last
-			i++
-
-			// Try to decode it
-			d, err := DecodeString(data[:i])
-			if err != nil {
-				return ret, err
-			}
-
-			ret = append(ret, d)
-			data = data[i:]
-		case "i":
-			// We have an integer!
-			// Try to find it's end
-			i, err := indexIntEnd(data)
-			if err != nil {
-				return ret, err
-			}
-
-			// Increment i to get one char after the last
-			i++
-
-			// Try to decode it
-			d, err := DecodeInt(data[:i])
-			if err != nil {
-				return ret, err
-			}
-
-			ret = append(ret, d)
-			data = data[i:]
-		case "l":
-			// We have a list
-			// Try to find it's end
-			i, err := indexListEnd(data)
-			if err != nil {
-				return ret, err
-			}
-
-			// Increment i to get one char after the last
-			i++
-
-			// Try to decode it
-			d, err := DecodeList(data[:i])
-			if err != nil {
-				return ret, nil
-			}
-
-			ret = append(ret, d)
-			data = data[i:]
-		case "d":
-			// We have a dictionary
-			// Try to find it's end
-			i, err := indexDictEnd(data)
-			if err != nil {
-				return ret, err
-			}
-
-			// Increment i to get one char after the last
-			i++
-
-			d, err := DecodeDictionary(data[:i])
-			if err != nil {
-				return ret, err
-			}
-
-			ret = append(ret, d)
-			data = data[i:]
-		}
-	}
-
-	return ret, nil
-}
-
-// indexStringEnd returns the index of the end of the bencoded string
-func indexStringEnd(data []byte) (int, error) {
-	c := bytes.IndexByte(data, byte(':'))
-
-	str := string(data[:c])
-	e, err := strconv.Atoi(str)
+// readIntUntil reads and decodes a bencoded int until before the first
+// occurence of the given byte
+func (decoder *decoder) readIntUntil(b byte) (interface{}, error) {
+	res, err := decoder.ReadSlice(b)
 	if err != nil {
 		return -1, err
 	}
 
-	return int(e) + c, nil
+	// Read until before the 'e'nd
+	str := string(res[:len(res)-1])
+
+	// Check int
+	num, err := strconv.ParseInt(str, 10, 64)
+	if err == nil {
+		return num, nil
+	}
+
+	// Check unsigned int
+	unum, err := strconv.ParseUint(str, 10, 64)
+	if err == nil {
+		return unum, nil
+	}
+
+	return -1, err
 }
 
-// indexIntEnd returns the index of the end of the bencoded int
-func indexIntEnd(data []byte) (int, error) {
-	e := bytes.IndexByte(data, byte('e'))
-
-	if e < 0 {
-		return -1, fmt.Errorf("could not find end of int")
-	}
-
-	return e, nil
-}
-
-// indexlistEnd returns the index of the end of the bencoded list
-func indexListEnd(data []byte) (int, error) {
-	if !bytes.HasPrefix(data, []byte("l")) {
-		return -1, fmt.Errorf("not a bencoded list")
-	}
-
-	if len(data) < 2 {
-		return -1, fmt.Errorf("list to short")
-	}
-
-	data = data[1:] // Remove "l"
-	e, err := indexEnd(data)
-
+// readValue reads, detects and decodes a bencoded value
+func (decoder *decoder) readString() (string, error) {
+	// Get length of string
+	l, err := decoder.readIntUntil(':')
 	if err != nil {
-		return -1, err
+		return "", err
 	}
 
-	// + 1 because we strip the leading "l"
-	return e + 1, nil
-}
-
-// indexDictEnd returns the index of the end of a bencoded dictionary
-func indexDictEnd(data []byte) (int, error) {
-	if len(data) < 2 {
-		return -1, fmt.Errorf("dictionary too short")
-	}
-
-	if !bytes.HasPrefix(data, []byte("d")) {
-		return -1, fmt.Errorf("not a bencoded dictionary")
-	}
-
-	data = data[1:] // Remove "d"
-	e, err := indexEnd(data)
-
-	if err != nil {
-		return -1, err
-	}
-
-	// + 1 because we strip the leading "d"
-	return e + 1, nil
-}
-
-// indexEnd gets the end of variables chained together
-func indexEnd(data []byte) (int, error) {
-	end := 0
-
-	for len(data) > 0 {
-		// TODO: Find a better way to initialize an error
-		e, err := 0, fmt.Errorf("")
-		first := string(data[0])
-
-		switch first {
-		default:
-			// Most likely a string or an error
-			e, err = indexStringEnd(data)
-		case "i":
-			// We have an integer
-			e, err = indexIntEnd(data)
-		case "l":
-			// We have a list
-			e, err = indexListEnd(data)
-		case "d":
-			// We have a dictionary
-			e, err = indexDictEnd(data)
-		case "e":
-			// We found the end!
-			return end, nil
-		}
-
-		// Check if we got an error
+	// Read into buffer
+	strLen := l.(int64)
+	buf := make([]byte, strLen)
+	pos := int64(0)
+	for pos < strLen {
+		n, err := decoder.Read(buf[pos:])
 		if err != nil {
-			return -1, err
+			return "", err
 		}
 
-		// Increment e, because we need the next start index
-		e++
-
-		// No error returned, set new index
-		end += e
-
-		// Set string at new index for next loop
-		data = data[e:]
+		pos += int64(n)
 	}
 
-	return -1, fmt.Errorf("could not find end")
+	return string(buf), nil
 }
 
-// makeMap takes a string array and converts them to a map[key]value
-func makeMap(stringSlice []interface{}) (map[string]interface{}, error) {
-	stringMap := map[string]interface{}{}
-	l := len(stringSlice)
-
-	// Check if we even got items
-	if l == 0 {
-		return stringMap, nil
+// readValue reads, detects and decodes a bencoded value
+func (decoder *decoder) readValue() (interface{}, error) {
+	b, err := decoder.ReadByte()
+	if err != nil {
+		return nil, err
 	}
 
-	// Check if we have an even length
-	if l%2 != 0 {
-		return stringMap, fmt.Errorf("key %s has no value", stringSlice[l-1])
+	var item interface{}
+	switch b {
+	case 'i':
+		item, err = decoder.readInt()
+	case 'l':
+		item, err = decoder.readList()
+	case 'd':
+		item, err = decoder.readDictionary()
+	default:
+		// Unread last byte, because it belongs to the lenght
+		// of the string
+		if err := decoder.UnreadByte(); err != nil {
+			return nil, err
+		}
+		item, err = decoder.readString()
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return item, nil
+}
+
+// isEnd returns if the next byte is an 'e'
+func (decoder *decoder) isEnd() (bool, error) {
+	b, err := decoder.ReadByte()
+	if err != nil {
+		return false, err
+	} else if b == 'e' {
+		return true, nil
+	} else if err := decoder.UnreadByte(); err != nil {
+		// Unread last byte since it's not an 'e'
+		return false, err
+	}
+
+	return false, nil
+}
+
+// readList reads and decodes a bencoded list
+func (decoder *decoder) readList() (interface{}, error) {
+	var list []interface{}
 
 	for {
-		// Check if there are enough items
-		if len(stringSlice) < 2 {
-			break
+		// Check if end
+		end, err := decoder.isEnd()
+		if err != nil {
+			return nil, err
+		} else if end {
+			return list, nil
 		}
 
-		if key, ok := stringSlice[0].(string); ok {
-			stringMap[key] = stringSlice[1:2][0]
-			stringSlice = stringSlice[2:]
+		// Get item
+		item, err := decoder.readValue()
+		if err != nil {
+			return nil, err
 		}
+
+		list = append(list, item)
+	}
+}
+
+// readDictionary reads and decodes a bencoded dictionary
+func (decoder *decoder) readDictionary() (map[string]interface{}, error) {
+	var dict = map[string]interface{}{}
+
+	for {
+		// Check if end
+		end, err := decoder.isEnd()
+		if err != nil {
+			return nil, err
+		} else if end {
+			return dict, nil
+		}
+
+		// Get key
+		key, err := decoder.readString()
+		if err != nil {
+			return nil, err
+		}
+
+		// Get value
+		val, err := decoder.readValue()
+		if err != nil {
+			return nil, err
+		}
+
+		dict[key] = val
+	}
+}
+
+// Decode decodes the bencoded data in the given reader
+func Decode(reader io.Reader) (map[string]interface{}, error) {
+	decoder := decoder{*bufio.NewReader(reader)}
+
+	if b, err := decoder.ReadByte(); err != nil {
+		return nil, err
+	} else if b != 'd' {
+		return nil, errors.New("bencode data must be a dictionary at top level")
 	}
 
-	return stringMap, nil
+	return decoder.readDictionary()
 }
