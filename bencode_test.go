@@ -80,13 +80,25 @@ func TestReadString(t *testing.T) {
 	// Test broken reader
 	dec = getDecoder([]byte(""))
 	if _, err := dec.readString(); err == nil {
-		t.Errorf("readSstring with empty string returned no error, but should")
+		t.Errorf("readSstring with empty buffer returned no error, but should")
 	}
 
 	// Test wrong format
 	dec = getDecoder([]byte("4:foo"))
 	if _, err := dec.readString(); err == nil {
 		t.Errorf("readString with wrong formatted string returned no error, but should")
+	}
+}
+
+func TestReadValue(t *testing.T) {
+	dec := getDecoder([]byte(""))
+	if _, err := dec.readValue(); err == nil {
+		t.Errorf("readValue with empty buffer returned no error, but should")
+	}
+
+	dec = getDecoder([]byte("ifooe"))
+	if _, err := dec.readValue(); err == nil {
+		t.Errorf("readValue with wrongly formatted buffer returned no error, but should")
 	}
 }
 
