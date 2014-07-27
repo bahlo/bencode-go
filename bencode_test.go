@@ -142,6 +142,16 @@ func TestReadList(t *testing.T) {
 	if !reflect.DeepEqual(list, o) {
 		t.Errorf("readList returned %v, but should return %v", list, o)
 	}
+
+	dec = getDecoder([]byte(""))
+	if _, err := dec.readList(); err == nil {
+		t.Errorf("readList with empty buffer returned no error, but should")
+	}
+
+	dec = getDecoder([]byte("4:test"))
+	if _, err := dec.readList(); err == nil {
+		t.Errorf("readList with no 'e'nd returned no error, but should")
+	}
 }
 
 func TestReadDictionary(t *testing.T) {
