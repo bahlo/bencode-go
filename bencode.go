@@ -165,8 +165,6 @@ func (decoder *decoder) readDictionary() (map[string]interface{}, error) {
 
 		dict[key] = val
 	}
-
-	return dict, nil
 }
 
 // Decode decodes the bencoded data in the given reader

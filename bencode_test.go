@@ -170,6 +170,31 @@ func TestReadDictionary(t *testing.T) {
 	if !reflect.DeepEqual(dict, o) {
 		t.Errorf("readDictionary returned %v, but should %v", dict, o)
 	}
+
+	dec = getDecoder([]byte(""))
+	if _, err := dec.readDictionary(); err == nil {
+		t.Errorf("readDict with empty buffer returned no error, but should")
+	}
+
+	dec = getDecoder([]byte(":"))
+	if _, err := dec.readDictionary(); err == nil {
+		t.Errorf("readDict with invalid key returned no error, but should")
+	}
+
+	dec = getDecoder([]byte("3:fooe"))
+	if _, err := dec.readDictionary(); err == nil {
+		t.Errorf("readDict with no value returned no error, but should")
+	}
+
+	dec = getDecoder([]byte("3:foo"))
+	if _, err := dec.readDictionary(); err == nil {
+		t.Errorf("readDict with only one key and no value returned no error, but should")
+	}
+
+	dec = getDecoder([]byte("3:foo3:bar"))
+	if _, err := dec.readDictionary(); err == nil {
+		t.Errorf("readDict with no 'e'nd returned no error, but should")
+	}
 }
 
 func TestDecode(t *testing.T) {
