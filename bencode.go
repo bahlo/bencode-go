@@ -134,8 +134,6 @@ func (decoder *decoder) readList() (interface{}, error) {
 
 		list = append(list, item)
 	}
-
-	return list, nil
 }
 
 // readDictionary reads and decodes a bencoded dictionary

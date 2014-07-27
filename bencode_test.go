@@ -136,6 +136,11 @@ func TestReadList(t *testing.T) {
 	if _, err := dec.readList(); err == nil {
 		t.Errorf("readList with no 'e'nd returned no error, but should")
 	}
+
+	dec = getDecoder([]byte("ie"))
+	if _, err := dec.readList(); err == nil {
+		t.Errorf("readList with no valid value returned no error, but should")
+	}
 }
 
 func TestReadDictionary(t *testing.T) {
