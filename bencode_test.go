@@ -1,4 +1,4 @@
-package octorrent
+package bencode
 
 import (
 	"bufio"
